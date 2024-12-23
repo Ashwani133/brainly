@@ -54,6 +54,7 @@ app.post("/api/v1/content",userMiddleware,async (req,res)=>{
     await contentModel.create({
         link,
         type,
+        title:req.body.title,
         //@ts-ignore
         userId:req.userId,
         tags:[]
@@ -90,26 +91,41 @@ app.delete("/api/v1/content",userMiddleware,async (req,res)=>{
 app.post("/api/v1/brain/share",userMiddleware,async (req,res)=>{
     const share = req.body.share;
     if(share){
+        const existingLink = await linkModel.findOne({
+            //@ts-ignore
+            userId: req.userId
+        })
+
+        if(existingLink){
+            res.json({
+                hash:existingLink.hash
+            })
+            return;
+        }
+        const hash = random(10);
         await linkModel.create({
             //@ts-ignore
             userId:req.userId,
-            hash:random(10)
+            hash:hash
+        })
+        res.json({
+            message:hash
         })
     }else{
         await linkModel.deleteOne({
             //@ts-ignore
             userId:req.userId
         })
+        res.json({
+            message:"Removed link."
+        })
     }
 
-    res.json({
-        message:"Updated shareable link."
-    })
 })
 
 app.get("/api/v1/brain/:shareLink",async (req,res)=>{
     const hash = req.params.shareLink;
-
+    
     const link = await linkModel.findOne({
         hash:hash
     })
@@ -127,7 +143,7 @@ app.get("/api/v1/brain/:shareLink",async (req,res)=>{
     })
 
     const user = await userModel.findOne({
-        userId:link.userId
+        _id:link.userId
     })
 
     if(!user){
